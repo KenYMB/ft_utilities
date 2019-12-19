@@ -1,0 +1,118 @@
+function ft_neurofif_average_dev2head(inputs, varargin)
+
+% FT_NEUROFIF_AVERAGE_DEV2HEAD(inputs [,output] [,'rot', rottype])
+% 
+% output            % name of output file
+%                   % default name is 'dev2head_ave.fiff'
+% rottype           % output type of rotation matrix
+%                   % 'eye'(default): output identity matrix
+%                   % 'average'     : output average across input data
+
+% using: fieldtrip(, ft_hastoolbox, mne), ft_neurofif_write_coord_trans, cellfind, rmempty
+
+% 20170814 Yuasa
+% 20180306 Yuasa: update the computation for rottype='eye'
+%                (cuz, origin of translation matrix based on output origin)
+
+
+me='original:ft_neurofif_average_dev2head';
+
+narginchk(1,inf)
+
+ft_defaults;
+ft_hastoolbox('mne',1,0);
+
+global FIFF;
+if isempty(FIFF)
+    FIFF = fiff_define_constants();
+end
+
+%-- set 'rottype'
+isrotopt = cellfind(varargin,'rot');
+rottype = [];
+if ~isempty(isrotopt) && isrotopt(1) < length(varargin)
+    rottype = varargin{isrotopt(1)+1};
+end
+if strcmpi(rottype,'average') || strcmpi(rottype,'avg') || strcmpi(rottype,'ave')
+    rottype = true;             % average
+else
+    rottype = false;            % eye
+end
+
+%-- set 'output'
+isoutput = 1:length(varargin);
+rmidx    = [isrotopt; isrotopt+1];
+rmidx(rmidx > length(varargin)) = [];
+isoutput(rmidx) = [];
+if isempty(isoutput)
+    output   = 'dev2head_ave.fiff';
+else
+    output   = varargin{isoutput(1)};
+    if iscell(output),   output = output{1};  end
+end
+
+%-- make load list
+if ~iscell(inputs)
+    inputs  = {inputs};
+end
+inputsInt = {};
+for ilp=1:length(inputs)
+  if ispc
+    dirname   = fileparts(inputs{ilp});
+    tmplist   = ls(inputs{ilp});
+    tmplist   = cellstr([repmat([dirname filesep],size(tmplist,1),1) tmplist]);
+  else
+    tmplist   = reshape(strsplit(ls(inputs{ilp})),[],1);
+  end
+  inputsInt = [inputsInt; tmplist];
+end
+inputsInt = rmempty(inputsInt);
+if isempty(inputsInt)
+    error(message('MATLAB:open:fileNotFound', name));
+end
+
+%-- load input
+fprintf(1,'Now loading...');
+clear trans_dev2head
+trans_dev2head(1:length(inputsInt)) = struct('from',[],'to',[],'trans',[]);
+validlist = true(1,length(inputsInt));
+for ilp=1:length(inputsInt)
+    %-- load trans
+    input = inputsInt{ilp};    
+    trans_dev2head(ilp) = fiff_read_coord_trans(input);
+    
+    %-- check trans
+    if trans_dev2head(ilp).from~=FIFF.FIFFV_COORD_DEVICE || trans_dev2head(ilp).to~=FIFF.FIFFV_COORD_HEAD
+        fprintf(2,'transform matrix in ''%s'' is invalid.\n',input);
+        trans_dev2head(ilp) = [];
+        validlist(ilp)      = false;
+    end
+end
+
+%-- average trans
+avg_trans = struct('from',FIFF.FIFFV_COORD_DEVICE,'to',FIFF.FIFFV_COORD_HEAD,'trans',zeros(4));
+avg_trans.trans = mean(cat(3,trans_dev2head.trans),3);
+
+%-- modify rot
+if ~rottype             % false = 'eye'
+    %-- following computation is same as inverse rotation
+    avg_trans.trans = inv(avg_trans.trans);
+    avg_trans.trans(1:3,1:3) = eye(3);
+    avg_trans.trans = inv(avg_trans.trans);
+end
+
+%-- write out
+fprintf(1,'writng...\n');
+ft_neurofif_write_coord_trans(output, avg_trans, 'm',inputsInt{find(validlist,1)});
+
+function [trans_head2mri] = fiff_read_coord_trans(transfile)
+
+global FIFF;
+
+[fid,~,dir] = fiff_open(transfile);
+a = find([dir.kind] == FIFF.FIFF_COORD_TRANS);
+pos = dir(a(1)).pos;
+tag = fiff_read_tag(fid,pos);
+trans_head2mri = tag.data;
+fclose(fid);                    % original function forget 'fclose'
+
