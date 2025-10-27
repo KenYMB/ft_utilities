@@ -67,6 +67,7 @@ function [cfg, M] = ft_sourcemovie2(cfg, source, source2)
 % 20170713 Yuasa: enable to modity alim
 % 20170809 Yuasa: enable cfg.altas option
 % 20170809 Yuasa: rename to 'ft_sourcemovie2'
+% 20251024 Yuasa: add try for ft_preamble to avoid compatibility errors
 
 % Using: ft_private(ft_platform_supports, parameterselection, getdimord, [getdimsiz], intersect_line, [normals], atlas_lookup)
 
@@ -81,11 +82,13 @@ ft_nargout  = nargout;
 
 % do the general setup of the function
 ft_defaults
+try
 ft_preamble init
 ft_preamble debug
 ft_preamble loadvar source
 ft_preamble provenance source
 ft_preamble trackconfig
+end
 
 ft_private('silent');
 

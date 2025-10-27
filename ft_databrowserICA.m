@@ -152,6 +152,7 @@ function [component cfg] = ft_databrowserICA(cfg, data)
 % 20170110 Yuasa: minor fix
 % 20170127 Yuasa: add automatically combine planar for topo
 % 20171013 Yuasa: add detailed error massage for combineplanar
+% 20251024 Yuasa: add try for ft_preamble to avoid compatibility errors
 
 % these are used by the ft_preamble/ft_postamble function and scripts
 ft_revision = '$Id$';
@@ -160,11 +161,13 @@ ft_nargout  = nargout;
 
 % do the general setup of the function
 ft_defaults
+try
 ft_preamble init
 ft_preamble debug
 ft_preamble loadvar data
 ft_preamble provenance data
 ft_preamble trackconfig
+end
 
 % the ft_abort variable is set to true or false in ft_preamble_init
 if ft_abort

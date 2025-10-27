@@ -72,6 +72,7 @@ function [cfg] = ft_connectivityplotTFR(cfg, varargin)
 % 20171204 Yuasa: minor fix
 % 20180406 Yuasa: enable cfg.legend
 % 20180725 Yuasa: minor update
+% 20251024 Yuasa: add try for ft_preamble to avoid compatibility errors
 
 % these are used by the ft_preamble/ft_postamble function and scripts
 ft_revision = '$Id$';
@@ -80,10 +81,12 @@ ft_nargout  = nargout;
 
 % do the general setup of the function
 ft_defaults
+try
 ft_preamble init
 ft_preamble debug
 ft_preamble provenance varargin
 ft_preamble trackconfig
+end
 
 % the ft_abort variable is set to true or false in ft_preamble_init
 if ft_abort

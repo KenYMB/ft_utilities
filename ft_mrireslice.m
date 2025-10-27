@@ -65,6 +65,7 @@ function [resliced] = ft_mrireslice(cfg, mri)
 % $Id$
 
 % 20170713 Yuasa
+% 20251024 Yuasa: add try for ft_preamble to avoid compatibility errors
 
 % using: fieldtrip, ft_private(translate, scale)
 
@@ -75,11 +76,13 @@ ft_nargout  = nargout;
 
 % do the general setup of the function
 ft_defaults
+try
 ft_preamble init
 ft_preamble debug
 ft_preamble loadvar mri
 ft_preamble provenance mri
 ft_preamble trackconfig
+end
 
 % the ft_abort variable is set to true or false in ft_preamble_init
 if ft_abort
